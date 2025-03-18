@@ -10,7 +10,7 @@ import { Head, Link } from '@inertiajs/vue3';
     <div class="flex min-h-screen flex-col items-center bg-[#FDFDFC] p-6 text-[#1b1b18] dark:bg-[#0a0a0a] lg:justify-center lg:p-8" style="background-image: url('/images/bg.jpg')">
         <header class="not-has-[nav]:hidden mb-6 w-full max-w-[335px] text-sm lg:max-w-4xl">
             <nav class="flex items-center justify-end gap-4">
-                <div class="border p-2 bg-white rounded-lg">
+                <div class="border p-2 bg-white rounded-lg grid grid-cols-2 gap-2">
                     <Link
                         v-if="$page.props.auth.user"
                         :href="route('dashboard')"
