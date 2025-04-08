@@ -12,6 +12,26 @@ use PhpOffice\PhpWord\SimpleType\Jc;
 
 class ListOfShareholdersController extends Controller
 {
+    private function dateWithMonthRu(): string
+    {
+        $arr = [
+            'января',
+            'февраля',
+            'марта',
+            'апреля',
+            'мая',
+            'июня',
+            'июля',
+            'августа',
+            'сентября',
+            'октября',
+            'ноября',
+            'декабря'
+        ];
+        $month = date('n')-1;
+
+        return date('d ') . $arr[$month] . date(' Y ') . 'года';
+    }
     private function createFullAddress(array $document): string
     {
         if (isset($document['СвЮЛ']['СвАдресЮЛ']['АдресРФ'])) {
@@ -30,9 +50,15 @@ class ListOfShareholdersController extends Controller
                 . ', ' . $addressFromDocument['НаимРегион']
                 . ', ' . $addressFromDocument['МуниципРайон']['@attributes']['Наим']
                 . ', ' . $addressFromDocument['ЭлУлДорСети']['@attributes']['Тип']
-                . ' ' . $addressFromDocument['ЭлУлДорСети']['@attributes']['Наим']
-                . ', ' . $addressFromDocument['Здание']['@attributes']['Тип']
-                . ' ' . $addressFromDocument['Здание']['@attributes']['Номер'];
+                . ' ' . $addressFromDocument['ЭлУлДорСети']['@attributes']['Наим'];
+
+            if (isset($addressFromDocument['Здание']['@attributes'])) {
+                $fullAddress .= ', ' . $addressFromDocument['Здание']['@attributes']['Тип'] . ' ' . $addressFromDocument['Здание']['@attributes']['Номер'];
+            } else {
+                foreach ($addressFromDocument['Здание'] as $item) {
+                    $fullAddress .= ', ' . $item['@attributes']['Тип'] . ' ' . $item['@attributes']['Номер'];
+                }
+            }
 
             if (isset($addressFromDocument['ПомещЗдания'])) {
                 $fullAddress = $fullAddress . ', ' . $addressFromDocument['ПомещЗдания']['@attributes']['Тип'] . ' ' . $addressFromDocument['ПомещЗдания']['@attributes']['Номер'];
@@ -194,7 +220,7 @@ class ListOfShareholdersController extends Controller
         $section = $phpWord->addSection([
             'orientation' => 'landscape',
             'marginTop' => 200,
-            'marginLeft' => 200,
+            'marginLeft' => 400,
             'marginRight' => 200,
             'marginBottom' => 200,
         ]);
@@ -290,7 +316,7 @@ class ListOfShareholdersController extends Controller
         $table->addCell(1500, $firstRowStyle)->addText('Размер доли в уставном капитале общества (%)', $fontStyleTable, $paragraphStyleCenter);
         $table->addCell(2000, $firstRowStyle)->addText('Номинальная стоимость доли в уставном капитале общества (руб.)', $fontStyleTable, $paragraphStyleCenter);
         $table->addCell(1500, $firstRowStyle)->addText('Сведения об оплате доли (руб.)', $fontStyleTable, $paragraphStyleCenter);
-        $table->addCell(6250, $firstRowStyle)->addText('Залог доли', $fontStyleTable, $paragraphStyleCenter);
+        $table->addCell(6000, $firstRowStyle)->addText('Залог доли', $fontStyleTable, $paragraphStyleCenter);
 
         $count = 0;
 
@@ -303,7 +329,7 @@ class ListOfShareholdersController extends Controller
             $table->addCell(1500)->addText($document['СвЮЛ']['СвДоляООО']['РазмерДоли']['Процент'] . ' %', $fontStyleRegular, $paragraphStyleCenter);
             $table->addCell(2000)->addText(number_format($document['СвЮЛ']['СвДоляООО']['@attributes']['НоминСтоим'], 0, '', ' '), $fontStyleRegular, $paragraphStyleCenter);
             $table->addCell(1500)->addText('оплачена полностью', $fontStyleRegular, $paragraphStyleCenter);
-            $table->addCell(6250)->addText($this->createEncumbrance($document['СвЮЛ']['СвДоляООО']['СвОбрем']) ? $this->createEncumbrance($document['СвЮЛ']['СвДоляООО']['СвОбрем']) : 'нет', $fontStyleRegular, $paragraphStyleCenter);
+//            $table->addCell(6000)->addText($this->createEncumbrance($document['СвЮЛ']['СвДоляООО']['СвОбрем']) ? $this->createEncumbrance($document['СвЮЛ']['СвДоляООО']['СвОбрем']) : 'нет', $fontStyleRegular, $paragraphStyleCenter);
         }
 
         $table->addRow();
@@ -314,7 +340,7 @@ class ListOfShareholdersController extends Controller
         $table->addCell(1500)->addText(100 - (isset($document['СвЮЛ']['СвДоляООО']) ? $document['СвЮЛ']['СвДоляООО']['РазмерДоли']['Процент'] : 0) . ' %', $fontStyleRegular, $paragraphStyleCenter);
         $table->addCell(2000)->addText(number_format(($this->getAuthorizedCapital($document) - (isset($document['СвЮЛ']['СвДоляООО']) ? $document['СвЮЛ']['СвДоляООО']['@attributes']['НоминСтоим'] : 0)), 0, '', ' '), $fontStyleRegular, $paragraphStyleCenter);
         $table->addCell(1500)->addText('оплачена полностью', $fontStyleRegular, $paragraphStyleCenter);
-        $table->addCell(6250)->addText($this->createEncumbrance($document['СвЮЛ']['СвУчредит']), $fontStyleRegular, $paragraphStyleCenter);
+        $table->addCell(6000)->addText($this->createEncumbrance($document['СвЮЛ']['СвУчредит']), $fontStyleRegular, $paragraphStyleCenter);
 
         // Итого
         $table->addRow();
@@ -324,103 +350,137 @@ class ListOfShareholdersController extends Controller
         $table->addCell(1500)->addText('100 %', $fontStyleRegular, $paragraphStyleCenter);
         $table->addCell(2000)->addText($authorizedCapital . ' рублей', $fontStyleRegular, $paragraphStyleCenter);
         $table->addCell(1500)->addText('', $fontStyleRegular, $paragraphStyleCenter);
-        $table->addCell(6250)->addText('', $fontStyleRegular, $paragraphStyleCenter);
+        $table->addCell(6000)->addText('', $fontStyleRegular, $paragraphStyleCenter);
 
 
 
 
+        $section->addTextBreak();
+        // Раздел 1. Список участников общества
+        $section->addText('Раздел 1. Список участников общества с ограниченной ответственностью', $fontStyleHeader, $paragraphStyleLeft);
+        $section->addText('Подраздел 1.1. Список участников ' . $document['СвЮЛ']['СвНаимЮЛ']['СвНаимЮЛСокр']['@attributes']['НаимСокр'] . ' на ' . $this->dateWithMonthRu(), $fontStyleRegular, $paragraphStyleLeft);
 
-//        $section->addTextBreak();
+        // Таблица списка участников
+        $table = $section->addTable($tableStyle);
+
+        // Заголовки таблицы списка
+        $table->addRow();
+        $table->addCell(500, $firstRowStyle)->addText('№ п/п', $fontStyleTable, $paragraphStyleCenter);
+        $table->addCell(3000, $firstRowStyle)->addText('Полное фирменное наименование (для юридического лица) или фамилии имя отчество для физического лица', $fontStyleTable, $paragraphStyleCenter);
+        $table->addCell(3000, $firstRowStyle)->addText('Место нахождения юридического лица или место регистрации физического лица', $fontStyleTable, $paragraphStyleCenter);
+        $table->addCell(2500, $firstRowStyle)->addText('Документ, удостоверяющий личность, или дата, № свидетельства о государственной регистрации', $fontStyleTable, $paragraphStyleCenter);
+        $table->addCell(1000, $firstRowStyle)->addText('Тип участника', $fontStyleTable, $paragraphStyleCenter);
+        $table->addCell(1500, $firstRowStyle)->addText('Дата приобретения (перехода доли)', $fontStyleTable, $paragraphStyleCenter);
+        $table->addCell(1250, $firstRowStyle)->addText('Размер доли в уставном капитале общества (%)', $fontStyleTable, $paragraphStyleCenter);
+        $table->addCell(1750, $firstRowStyle)->addText('Номинальная стоимость доли в уставном капитале общества (руб.)', $fontStyleTable, $paragraphStyleCenter);
+        $table->addCell(1500, $firstRowStyle)->addText('Сведения об оплате доли (руб.)', $fontStyleTable, $paragraphStyleCenter);
+
+        $count = 0;
+        foreach ($document['СвЮЛ']['СвУчредит'] as $groupKey => $groupValue) { // проходимся по участникам
+            foreach ($groupValue as $key => $value) { // проходимся по ключу участника
+                if ($key == 'ГРНДатаПерв') { // проверка на вложенность массива второго уровня
+                    if ($groupKey == 'УчрФЛ') { // проверка, что фл
+                        $table->addRow();
+                        $count++;
+                        $table->addCell(500)->addText($count, $fontStyleRegular, $paragraphStyleCenter);
+                        $table->addCell(3000)->addText($groupValue['СвФЛ']['@attributes']['Фамилия'] . ' ' . $groupValue['СвФЛ']['@attributes']['Имя'] . ' ' . $groupValue['СвФЛ']['@attributes']['Отчество'], $fontStyleHeader, $paragraphStyleLeft);
+                        $table->addCell(3000)->addText('Заполнить', $fontStyleRegular, $paragraphStyleLeft);
+                        $table->addCell(2500)->addText('Заполнить', $fontStyleRegular, $paragraphStyleLeft);
+                        $table->addCell(1000)->addText('Физ. лицо', $fontStyleRegular, $paragraphStyleCenter);
+                        $table->addCell(1500)->addText(date("d.m.Y", strtotime($groupValue['ГРНДатаПерв']['@attributes']['ДатаЗаписи'])), $fontStyleRegular, $paragraphStyleCenter);
+                        $table->addCell(1250)->addText($groupValue['ДоляУстКап']['РазмерДоли']['Процент'], $fontStyleRegular, $paragraphStyleCenter);
+                        $table->addCell(1750)->addText($groupValue['ДоляУстКап']['@attributes']['НоминСтоим'], $fontStyleRegular, $paragraphStyleCenter);
+                        $table->addCell(1500)->addText('Оплачена полностью', $fontStyleRegular, $paragraphStyleCenter);
+                    } else if ($groupKey == 'УчрЮЛРос') {
+
+                        $documentInForeach = $documentsService->getDocumentFromFNS($groupValue['НаимИННЮЛ']['@attributes']['ИНН']);
+
+                        $table->addRow();
+                        $count++;
+                        $table->addCell(500)->addText($count, $fontStyleRegular, $paragraphStyleCenter);
+                        $table->addCell(3000)->addText($groupValue['НаимИННЮЛ']['@attributes']['НаимЮЛПолн'], $fontStyleHeader, $paragraphStyleLeft);
+                        $table->addCell(3000)->addText($this->createFullAddress($documentInForeach), $fontStyleRegular, $paragraphStyleLeft);
+                        $table->addCell(2500)->addText('ОГРН: ' . $groupValue['НаимИННЮЛ']['@attributes']['ОГРН'], $fontStyleRegular, $paragraphStyleLeft);
+                        $table->addCell(1000)->addText('Юр. лицо', $fontStyleRegular, $paragraphStyleCenter);
+                        $table->addCell(1500)->addText(date("d.m.Y", strtotime($groupValue['ГРНДатаПерв']['@attributes']['ДатаЗаписи'])), $fontStyleRegular, $paragraphStyleCenter);
+                        $table->addCell(1250)->addText($groupValue['ДоляУстКап']['РазмерДоли']['Процент'], $fontStyleRegular, $paragraphStyleCenter);
+                        $table->addCell(1750)->addText($groupValue['ДоляУстКап']['@attributes']['НоминСтоим'], $fontStyleRegular, $paragraphStyleCenter);
+                        $table->addCell(1500)->addText('Оплачена полностью', $fontStyleRegular, $paragraphStyleCenter);
+                    }
+                    continue;
+                }
+                if ($key == 'УчрФЛ') { // проверка, что фл
+                    dd($value);
+                    $table->addRow();
+                    $count++;
+                    $table->addCell(500)->addText($count, $fontStyleRegular, $paragraphStyleCenter);
+                    $table->addCell(3000)->addText($value['СвФЛ']['@attributes']['Фамилия'] . ' ' . $value['СвФЛ']['@attributes']['Имя'] . ' ' . $value['СвФЛ']['@attributes']['Отчество'], $fontStyleHeader, $paragraphStyleLeft);
+                    $table->addCell(3000)->addText('Заполнить', $fontStyleRegular, $paragraphStyleLeft);
+                    $table->addCell(2500)->addText('Заполнить', $fontStyleRegular, $paragraphStyleLeft);
+                    $table->addCell(1000)->addText('Физ. лицо', $fontStyleRegular, $paragraphStyleCenter);
+                    $table->addCell(1500)->addText(date("d.m.Y", strtotime($value['ГРНДатаПерв']['@attributes']['ДатаЗаписи'])), $fontStyleRegular, $paragraphStyleCenter);
+                    $table->addCell(1250)->addText($value['ДоляУстКап']['РазмерДоли']['Процент'], $fontStyleRegular, $paragraphStyleCenter);
+                    $table->addCell(1750)->addText($value['ДоляУстКап']['@attributes']['НоминСтоим'], $fontStyleRegular, $paragraphStyleCenter);
+                    $table->addCell(1500)->addText('Оплачена полностью', $fontStyleRegular, $paragraphStyleCenter);
+                } else if ($groupKey == 'УчрЮЛРос') {
+
+//                    $documentInForeach = $documentsService->getDocumentFromFNS($value['НаимИННЮЛ']['@attributes']['ИНН']);
+
+                    $table->addRow();
+                    $count++;
+                    $table->addCell(500)->addText($count, $fontStyleRegular, $paragraphStyleCenter);
+//                    $table->addCell(3000)->addText($value['НаимИННЮЛ']['@attributes']['НаимЮЛПолн'], $fontStyleHeader, $paragraphStyleLeft);
+                    $table->addCell(3000)->addText($this->createFullAddress($documentInForeach), $fontStyleRegular, $paragraphStyleLeft);
+//                    $table->addCell(2500)->addText('ОГРН: ' . $value['НаимИННЮЛ']['@attributes']['ОГРН'], $fontStyleRegular, $paragraphStyleLeft);
+                    $table->addCell(1000)->addText('Юр. лицо', $fontStyleRegular, $paragraphStyleCenter);
+//                    $table->addCell(1500)->addText(date("d.m.Y", strtotime($value['ГРНДатаПерв']['@attributes']['ДатаЗаписи'])), $fontStyleRegular, $paragraphStyleCenter);
+//                    $table->addCell(1250)->addText($value['ДоляУстКап']['РазмерДоли']['Процент'], $fontStyleRegular, $paragraphStyleCenter);
+//                    $table->addCell(1750)->addText($value['ДоляУстКап']['@attributes']['НоминСтоим'], $fontStyleRegular, $paragraphStyleCenter);
+//                    $table->addCell(1500)->addText('Оплачена полностью', $fontStyleRegular, $paragraphStyleCenter);
+                }
+            }
+        }
+
+
 //        $section->addPageBreak();
-//        // Раздел 1. Список участников общества
-//        $section->addText('Раздел 1. Список участников общества с ограниченной ответственностью', $fontStyleHeader, $paragraphStyleLeft);
-//        $section->addText('Подраздел 1.1. Список участников ООО «ЛУЧ» на 04 марта 2025 года', $fontStyleRegular, $paragraphStyleLeft);
-//
-//        // Таблица списка участников
-//        $table = $section->addTable($tableStyle);
-//
-//        // Заголовки таблицы списка
-//        $table->addRow();
-//        $table->addCell(500, $firstRowStyle)->addText('№ п/п', $fontStyleTable, $paragraphStyleCenter);
-//        $table->addCell(3000, $firstRowStyle)->addText('Полное фирменное наименование (для юридического лица) или фамилии имя отчество для физического лица', $fontStyleTable, $paragraphStyleCenter);
-//        $table->addCell(3000, $firstRowStyle)->addText('Место нахождения юридического лица или место регистрации физического лица', $fontStyleTable, $paragraphStyleCenter);
-//        $table->addCell(3000, $firstRowStyle)->addText('Документ, удостоверяющий личность, или дата, № свидетельства о государственной регистрации', $fontStyleTable, $paragraphStyleCenter);
-//        $table->addCell(1000, $firstRowStyle)->addText('Тип участника', $fontStyleTable, $paragraphStyleCenter);
-//        $table->addCell(1500, $firstRowStyle)->addText('Дата приобретения (перехода доли)', $fontStyleTable, $paragraphStyleCenter);
-//        $table->addCell(1500, $firstRowStyle)->addText('Размер доли в уставном капитале общества (%)', $fontStyleTable, $paragraphStyleCenter);
-//        $table->addCell(2000, $firstRowStyle)->addText('Номинальная стоимость доли в уставном капитале общества (руб.)', $fontStyleTable, $paragraphStyleCenter);
-//        $table->addCell(2000, $firstRowStyle)->addText('Сведения об оплате доли (руб.)', $fontStyleTable, $paragraphStyleCenter);
-//
-//        // Данные таблицы списка участников
-//        $table->addRow();
-//        $table->addCell(500)->addText('1', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(3000)->addText('ИСАЕВ ОЛЕГ КОНСТАНТИНОВИЧ', $fontStyleRegular, $paragraphStyleLeft);
-//        $table->addCell(3000)->addText('Московская обл., г. Красногорск, Б-Р МОСКВОРЕЦКИЙ, дом 1, кв. 72', $fontStyleRegular, $paragraphStyleLeft);
-//        $table->addCell(3000)->addText('паспорт 46 19 № 634671, выдан ГУ МВД РОССИИ ПО МОСКОВСКОЙ ОБЛАСТИ «04» марта 2020 года, код подразделения 500-053', $fontStyleRegular, $paragraphStyleLeft);
-//        $table->addCell(1000)->addText('Физ. лицо', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(1500)->addText('28.04.2012', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(1500)->addText('10', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(2000)->addText('1 000', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(2000)->addText('Оплачена полностью', $fontStyleRegular, $paragraphStyleCenter);
-//
-//        $table->addRow();
-//        $table->addCell(500)->addText('2', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(3000)->addText('КОЗЛОВА ЛИДИЯ НИКОЛАЕВНА', $fontStyleRegular, $paragraphStyleLeft);
-//        $table->addCell(3000)->addText('г. Москва, ул. Пенягинская, дом 18, кв. 43', $fontStyleRegular, $paragraphStyleLeft);
-//        $table->addCell(3000)->addText('паспорт 45 07 № 883087, выдан РОВД «ЮЖНОЕ ТУШИНО» Гор. Москвы «14» апреля 2005 года, код подразделения 772-085', $fontStyleRegular, $paragraphStyleLeft);
-//        $table->addCell(1000)->addText('Физ. лицо', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(1500)->addText('05.05.2014', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(1500)->addText('40', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(2000)->addText('4 000', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(2000)->addText('Оплачена полностью', $fontStyleRegular, $paragraphStyleCenter);
-//
-//        $table->addRow();
-//        $table->addCell(500)->addText('3', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(3000)->addText('ЛУНЕГОВ АЛЕКСАНДР ВАЛЕНТИНОВИЧ', $fontStyleRegular, $paragraphStyleLeft);
-//        $table->addCell(3000)->addText('г. Москва, ул. Барышиха, дом 28, кв. 114', $fontStyleRegular, $paragraphStyleLeft);
-//        $table->addCell(3000)->addText('паспорт 45 11 № 548608, выдан ОТДЕЛОМ УФМС РОССИИ ПО ГОР. МОСКВЕ ПО РАЙОНУ МИТИНО «16» февраля 2012 года, код подразделения 770-093', $fontStyleRegular, $paragraphStyleLeft);
-//        $table->addCell(1000)->addText('Физ. лицо', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(1500)->addText('30.11.2022', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(1500)->addText('50', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(2000)->addText('5 000', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(2000)->addText('Оплачена полностью', $fontStyleRegular, $paragraphStyleCenter);
-//
-//        $section->addPageBreak();
-//        // Подраздел 1.2
-//        $section->addTextBreak(1);
-//        $section->addText('Подраздел 1.2. Сведения о долях, принадлежащих ООО «ЛУЧ» на 04 марта 2025 года', $fontStyleRegular, $paragraphStyleLeft);
-//
-//        // Таблица сведений о долях
-//        $table = $section->addTable($tableStyle);
-//
-//        // Заголовки таблицы сведений о долях
-//        $table->addRow();
-//        $table->addCell(500, $firstRowStyle)->addText('№ п/п', $fontStyleTable, $paragraphStyleCenter);
-//        $table->addCell(3000, $firstRowStyle)->addText('Полное фирменное наименование общества', $fontStyleTable, $paragraphStyleCenter);
-//        $table->addCell(3000, $firstRowStyle)->addText('Место нахождения общества', $fontStyleTable, $paragraphStyleCenter);
-//        $table->addCell(2500, $firstRowStyle)->addText('Дата, № свидетельства о государственной регистрации', $fontStyleTable, $paragraphStyleCenter);
-//        $table->addCell(1500, $firstRowStyle)->addText('Тип участника', $fontStyleTable, $paragraphStyleCenter);
-//        $table->addCell(1500, $firstRowStyle)->addText('Дата приобретения (перехода доли)', $fontStyleTable, $paragraphStyleCenter);
-//        $table->addCell(1500, $firstRowStyle)->addText('Размер доли в уставном капитале общества (%)', $fontStyleTable, $paragraphStyleCenter);
-//        $table->addCell(2000, $firstRowStyle)->addText('Номинальная стоимость доли в уставном капитале общества (руб.)', $fontStyleTable, $paragraphStyleCenter);
-//        $table->addCell(2000, $firstRowStyle)->addText('Сведения об оплате доли (руб.)', $fontStyleTable, $paragraphStyleCenter);
-//
-//        // Данные таблицы сведений о долях
-//        $table->addRow();
-//        $table->addCell(500)->addText('1', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(3000)->addText('нет', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(3000)->addText('нет', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(2500)->addText('нет', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(1500)->addText('нет', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(1500)->addText('нет', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(1500)->addText('нет', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(2000)->addText('нет', $fontStyleRegular, $paragraphStyleCenter);
-//        $table->addCell(2000)->addText('нет', $fontStyleRegular, $paragraphStyleCenter);
-//
-//        // Подпись
-//        $section->addTextBreak();
-//        $section->addText('Генеральный директор                                                                                                                                                                 Исаев О.К.', $fontStyleRegular, $paragraphStyleLeft);
-//
+        // Подраздел 1.2
+        $section->addTextBreak();
+        $section->addText('Подраздел 1.2. Сведения о долях, принадлежащих ' . $document['СвЮЛ']['СвНаимЮЛ']['СвНаимЮЛСокр']['@attributes']['НаимСокр'] . ' на ' . $this->dateWithMonthRu(), $fontStyleRegular, $paragraphStyleLeft);
+
+        // Таблица сведений о долях
+        $table = $section->addTable($tableStyle);
+
+        // Заголовки таблицы сведений о долях
+        $table->addRow();
+        $table->addCell(500, $firstRowStyle)->addText('№ п/п', $fontStyleTable, $paragraphStyleCenter);
+        $table->addCell(3000, $firstRowStyle)->addText('Полное фирменное наименование общества', $fontStyleTable, $paragraphStyleCenter);
+        $table->addCell(3000, $firstRowStyle)->addText('Место нахождения общества', $fontStyleTable, $paragraphStyleCenter);
+        $table->addCell(2500, $firstRowStyle)->addText('Дата, № свидетельства о государственной регистрации', $fontStyleTable, $paragraphStyleCenter);
+        $table->addCell(1500, $firstRowStyle)->addText('Тип участника', $fontStyleTable, $paragraphStyleCenter);
+        $table->addCell(1500, $firstRowStyle)->addText('Дата приобретения (перехода доли)', $fontStyleTable, $paragraphStyleCenter);
+        $table->addCell(1500, $firstRowStyle)->addText('Размер доли в уставном капитале общества (%)', $fontStyleTable, $paragraphStyleCenter);
+        $table->addCell(2000, $firstRowStyle)->addText('Номинальная стоимость доли в уставном капитале общества (руб.)', $fontStyleTable, $paragraphStyleCenter);
+        $table->addCell(2000, $firstRowStyle)->addText('Сведения об оплате доли (руб.)', $fontStyleTable, $paragraphStyleCenter);
+
+        dd($document);
+
+        if (isset ($document['СвЮЛ']['СвДоляООО'])) {
+            $table->addRow();
+            $table->addCell(500)->addText('1', $fontStyleRegular, $paragraphStyleCenter);
+            $table->addCell(3000)->addText(, $fontStyleRegular, $paragraphStyleCenter);
+            $table->addCell(3000)->addText('нет', $fontStyleRegular, $paragraphStyleCenter);
+            $table->addCell(2500)->addText('нет', $fontStyleRegular, $paragraphStyleCenter);
+            $table->addCell(1500)->addText('нет', $fontStyleRegular, $paragraphStyleCenter);
+            $table->addCell(1500)->addText('нет', $fontStyleRegular, $paragraphStyleCenter);
+            $table->addCell(1500)->addText('нет', $fontStyleRegular, $paragraphStyleCenter);
+            $table->addCell(2000)->addText('нет', $fontStyleRegular, $paragraphStyleCenter);
+            $table->addCell(2000)->addText('нет', $fontStyleRegular, $paragraphStyleCenter);
+        }
+
+        // Подпись
+        $section->addTextBreak();
+        $section->addText('Генеральный директор                                                                                                                                                                 Исаев О.К.', $fontStyleRegular, $paragraphStyleLeft);
+
         // Сохраняем документ
         $objWriter = IOFactory::createWriter($phpWord);
 
