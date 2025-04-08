@@ -6,5 +6,5 @@ use Illuminate\Http\Client\Response;
 
 interface FNSApiRepositoryContract
 {
-    public function getDocument(int $inn): array;
+    public function  getDocument(int $inn): array;
 }

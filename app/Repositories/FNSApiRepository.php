@@ -10,6 +10,6 @@ class FNSApiRepository implements FNSApiRepositoryContract
 {
     public function getDocument(int $inn): array
     {
-        return Http::get('https://egrul.itsoft.ru/' . $inn . '.json')->throw()->json();
+        return json_decode(json_encode(simplexml_load_string(Http::get('https://egrul.itsoft.ru/' . $inn . '.xml')->throw()->body())), true);
     }
 }

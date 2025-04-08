@@ -5,7 +5,7 @@ namespace App\Services;
 use App\Contracts\Repositories\DocumentsRepositoryContract;
 use App\Contracts\Repositories\FNSApiRepositoryContract;
 use App\Contracts\Services\DocumentsServiceContract;
-use Illuminate\Http\Client\Response;
+use App\Models\Document;
 
 class DocumentsService implements DocumentsServiceContract
 {
@@ -20,8 +20,8 @@ class DocumentsService implements DocumentsServiceContract
         return $this->FNSApiRepository->getDocument($inn);
     }
 
-    public function createDocument(): void
+    public function saveDocument(int $inn, array $document): Document
     {
-        // TODO: Implement createDocument() method.
+        return $this->documentsRepository->saveDocument($inn, $document);
     }
 }
